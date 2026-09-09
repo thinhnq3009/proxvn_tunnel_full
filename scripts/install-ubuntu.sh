@@ -3,7 +3,7 @@
 set -eu
 
 repo="thinhnq3009/proxvn_tunnel_full"
-ref="${PROXVN_REF:-develop}"
+ref="${PROXVN_REF:-v7.5.0}"
 install_dir="${PROXVN_INSTALL_DIR:-/usr/local/bin}"
 
 if [ "$(uname -s)" != "Linux" ]; then
