@@ -147,6 +147,8 @@ proxvn [OPTIONS] [LOCAL_PORT]
 | `--server` | `103.77.246.196:8882` | Địa chỉ server tunnel (IP:Port). |
 | `--host` | `localhost` | Địa chỉ service local (vd `192.168.1.10`). |
 | `--port` | `80` | Port service local (điền trực tiếp cuối lệnh được). |
+| `--subdomain` | (tự động) | Yêu cầu subdomain cụ thể khi dùng HTTP tunnel. |
+| `--force` | `false` | Ép lấy lại `--subdomain` trên server có hỗ trợ. |
 | `--id` | (ngẫu nhiên) | Client ID tùy chọn, dùng để nhận diện trong Dashboard. |
 | `--ui` | `true` | Bật/tắt giao diện terminal (`true`/`false`). |
 | `--cert-pin` | (none) | SHA256 fingerprint của cert server để xác thực. |
@@ -172,6 +174,9 @@ proxvn --proto http 8080
 
 # Public service ở máy khác trong LAN (vd camera IP)
 proxvn --proto http --host 192.168.1.50 80
+
+# Yêu cầu subdomain myapp trên server riêng; --force lấy lại tên nếu đang bị giữ
+proxvn --server factorio.thinhnq.me:8882 --proto http --subdomain myapp --force 3000
 ```
 
 Kết quả:

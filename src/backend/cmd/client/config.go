@@ -12,13 +12,15 @@ import (
 // client can be pointed at a different server / domain WITHOUT recompiling.
 // Precedence at runtime:  command-line flags  >  config file  >  built-in defaults.
 type ClientConfig struct {
-	Server   string `json:"server"`    // tunnel server address (host:port)
-	Host     string `json:"host"`      // local host to forward
-	Port     int    `json:"port"`      // local port to forward
-	Proto    string `json:"proto"`     // tcp | udp | http
-	UI       bool   `json:"ui"`        // enable TUI
-	CertPin  string `json:"cert_pin"`  // optional server cert SHA256 pin
-	Insecure bool   `json:"insecure"`  // skip TLS verify (testing only)
+	Server    string `json:"server"`    // tunnel server address (host:port)
+	Host      string `json:"host"`      // local host to forward
+	Port      int    `json:"port"`      // local port to forward
+	Proto     string `json:"proto"`     // tcp | udp | http
+	Subdomain string `json:"subdomain"` // requested HTTP subdomain
+	Force     bool   `json:"force"`     // reclaim the requested HTTP subdomain
+	UI        bool   `json:"ui"`        // enable TUI
+	CertPin   string `json:"cert_pin"`  // optional server cert SHA256 pin
+	Insecure  bool   `json:"insecure"`  // skip TLS verify (testing only)
 }
 
 // defaultClientConfig returns the built-in defaults (used when no config file).

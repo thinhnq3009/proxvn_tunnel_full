@@ -56,6 +56,8 @@ type client struct {
 	publicHost         string
 	protocol           string
 	subdomain          string // Subdomain assigned by server for HTTP mode
+	requestedSubdomain string // Explicit HTTP subdomain requested by the user
+	forceSubdomain     bool   // Ask a compatible server to reclaim the requested subdomain
 	baseDomain         string // Base domain assigned by server for HTTP mode
 	certFingerprint    string // Optional: Server certificate fingerprint for pinning
 	insecureSkipVerify bool   // Skip TLS certificate verification
@@ -228,6 +230,8 @@ Licensed under FREE TO USE - NON-COMMERCIAL ONLY
 	portFlag := flag.Int("port", cfgFile.Port, "Port nội bộ (bị ghi đè nếu truyền trực tiếp)")
 	id := flag.String("id", "", "Client ID (optional)")
 	proto := flag.String("proto", cfgFile.Proto, "Protocol: tcp, udp, or http")
+	subdomainFlag := flag.String("subdomain", cfgFile.Subdomain, "Subdomain HTTP muốn sử dụng (không kèm domain gốc)")
+	forceFlag := flag.Bool("force", cfgFile.Force, "Ép lấy lại --subdomain nếu server hỗ trợ")
 	UI := flag.Bool("ui", cfgFile.UI, "Enable TUI (disable with --ui=false)")
 	certPin := flag.String("cert-pin", cfgFile.CertPin, "Optional: Server certificate SHA256 fingerprint for pinning (hex format)")
 	insecure := flag.Bool("insecure", cfgFile.Insecure, "Skip TLS certificate verification (for testing with localhost)")
@@ -314,16 +318,28 @@ Licensed under FREE TO USE - NON-COMMERCIAL ONLY
 	if protocol != "udp" && protocol != "http" {
 		protocol = "tcp"
 	}
+	requestedSubdomain, err := normalizeRequestedSubdomain(*subdomainFlag)
+	if err != nil {
+		log.Fatalf("[client] subdomain không hợp lệ: %v", err)
+	}
+	if requestedSubdomain != "" && protocol != "http" {
+		log.Fatal("[client] --subdomain chỉ dùng được với --proto http")
+	}
+	if *forceFlag && requestedSubdomain == "" {
+		log.Fatal("[client] --force yêu cầu --subdomain")
+	}
 
 	cl := &client{
-		serverAddr:      *serverAddr,
-		localAddr:       net.JoinHostPort(localHost, strconv.Itoa(localPort)),
-		clientID:        clientID,
-		protocol:        protocol,
-		certFingerprint: strings.ToLower(strings.TrimSpace(*certPin)),
-		uiEnabled:       *UI && term.IsTerminal(int(os.Stdout.Fd())),
-		state:           tunnel.NewStateMachine(),
-		ctrlQueue:       tunnel.NewControlMessageQueue(),
+		serverAddr:         *serverAddr,
+		localAddr:          net.JoinHostPort(localHost, strconv.Itoa(localPort)),
+		clientID:           clientID,
+		protocol:           protocol,
+		requestedSubdomain: requestedSubdomain,
+		forceSubdomain:     *forceFlag,
+		certFingerprint:    strings.ToLower(strings.TrimSpace(*certPin)),
+		uiEnabled:          *UI && term.IsTerminal(int(os.Stdout.Fd())),
+		state:              tunnel.NewStateMachine(),
+		ctrlQueue:          tunnel.NewControlMessageQueue(),
 	}
 
 	if err := cl.run(); err != nil {
@@ -427,6 +443,10 @@ func (c *client) connectControl() error {
 	_ = c.state.TransitionTo(tunnel.StateAuthenticating)
 	_ = c.state.TransitionTo(tunnel.StateRegistering)
 
+	registrationSubdomain := c.subdomain
+	if c.requestedSubdomain != "" {
+		registrationSubdomain = c.requestedSubdomain
+	}
 	register := tunnel.Message{
 		Type:       "register",
 		Key:        c.key,
@@ -434,7 +454,8 @@ func (c *client) connectControl() error {
 		Target:     c.localAddr,
 		Protocol:   c.protocol,
 		Generation: c.generation,
-		Subdomain:  c.subdomain,
+		Subdomain:  registrationSubdomain,
+		Force:      c.forceSubdomain,
 	}
 
 	// If reconnecting and we had a port before, request the same port
@@ -448,6 +469,9 @@ func (c *client) connectControl() error {
 
 	resp := tunnel.Message{}
 	if err := c.dec.Decode(&resp); err != nil {
+		if c.requestedSubdomain != "" && (errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed)) {
+			return fmt.Errorf("server từ chối subdomain %q; nếu subdomain đang được dùng, thử thêm --force", c.requestedSubdomain)
+		}
 		return err
 	}
 	if resp.Type != "registered" {

@@ -68,6 +68,8 @@ Hỗ trợ Web Interface (xem, sửa code, upload) và WebDAV (mount drive).
 | `--proto` | `tcp` | Giao thức: `tcp`, `udp`, `http`. |
 | `--host` | `localhost` | Host local cần forward (VD: 192.168.1.10). |
 | `--port` | `80` | Port local (có thể điền trực tiếp không cần flag này). |
+| `--subdomain` | (tự động) | Yêu cầu subdomain cụ thể cho HTTP tunnel. |
+| `--force` | `false` | Ép lấy lại `--subdomain` nếu server hỗ trợ. |
 | `--id` | (random) | ID định danh client (tùy chọn). |
 | `--ui` | `true` | Bật giao diện TUI (`false` để chạy background/service). |
 | `--cert-pin` | (none) | SHA256 fingerprint cert server để xác thực (chống MITM). |
@@ -92,5 +94,8 @@ Nếu bạn tự host server ProxVN:
 
 ```bash
 ./proxvn --server YOUR_VPS_IP:8882 --proto http 80
+
+# Server hỗ trợ giữ/ép subdomain
+./proxvn --server factorio.thinhnq.me:8882 --proto http --subdomain myapp --force 3000
 ```
 *(Nếu server có SSL tự ký, thêm `--insecure` nếu cần)*

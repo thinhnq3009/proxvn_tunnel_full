@@ -27,6 +27,7 @@ type Message struct {
 
 	// HTTP tunneling fields
 	Subdomain  string            `json:"subdomain,omitempty"`
+	Force      bool              `json:"force,omitempty"` // Reclaim a requested subdomain when the server supports it
 	Method     string            `json:"method,omitempty"`
 	Path       string            `json:"path,omitempty"`
 	Headers    map[string]string `json:"headers,omitempty"`
