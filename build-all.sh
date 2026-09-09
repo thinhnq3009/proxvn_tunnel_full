@@ -1,10 +1,10 @@
 #!/bin/bash
 # ProxVN Build Script - Build all platforms
-# Usage: ./scripts/build-all.sh
+# Usage: ./build-all.sh
 
 set -e
 
-echo "🚀 ProxVN Build Script v7.0.0"
+echo "🚀 ProxVN Build Script v7.5"
 echo "================================"
 echo ""
 
@@ -25,7 +25,7 @@ rm -rf $CLIENT_DIR $SERVER_DIR
 mkdir -p $CLIENT_DIR $SERVER_DIR
 
 # Build info
-VERSION="7.0.0"
+VERSION="7.5"
 BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 

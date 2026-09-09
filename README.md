@@ -74,7 +74,24 @@ thì sửa file `proxvn.json` hoặc dùng flag `--server` (xem [Cấu hình](do
 
 ## Cài đặt nhanh
 
-### 1. Tải binary
+### Ubuntu: cài một lệnh
+
+Installer tự nhận diện `amd64`/`arm64`, kiểm tra SHA256 và cài client thành
+`/usr/local/bin/proxvn`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/thinhnq3009/proxvn_tunnel_full/develop/scripts/install-ubuntu.sh | sudo sh
+```
+
+Sau đó có thể gọi `proxvn` ở bất kỳ thư mục nào, không cần `./`:
+
+```bash
+proxvn --proto http 3000
+```
+
+Chạy lại cùng lệnh cài đặt để cập nhật lên bản mới nhất trên nhánh `develop`.
+
+### 1. Tải binary thủ công
 
 Tải trực tiếp từ trang chủ (qua server công cộng):
 
