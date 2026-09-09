@@ -80,7 +80,7 @@ Installer tự nhận diện `amd64`/`arm64`, kiểm tra SHA256 và cài bản `
 thành `/usr/local/bin/proxvn`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/thinhnq3009/proxvn_tunnel_full/develop/scripts/install-ubuntu.sh | sudo sh
+curl -fsSL https://raw.githubusercontent.com/thinhnq3009/proxvn_tunnel_full/v7.5.0/scripts/install-ubuntu.sh | sudo sh
 ```
 
 Sau đó có thể gọi `proxvn` ở bất kỳ thư mục nào, không cần `./`:
