@@ -14,11 +14,13 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"golang.org/x/term"
@@ -27,7 +29,7 @@ import (
 )
 
 const (
-	defaultServerAddr  = "103.77.246.196:8882"
+	defaultServerAddr  = "factorio.thinhnq.me:8882"
 	defaultLocalHost   = "localhost"
 	defaultLocalPort   = 80
 	heartbeatInterval  = 5 * time.Second // Faster detection
@@ -69,21 +71,26 @@ type client struct {
 	rtt                time.Duration
 
 	// Control connection
-	control        net.Conn
-	enc            *jsonWriter
-	dec            *jsonReader
-	closeOnce      sync.Once
-	done           chan struct{}
-	trafficQuit    chan struct{}
-	statusCh       chan trafficStats
-	bytesUp        uint64
-	bytesDown      uint64
-	pingCh         chan time.Duration
-	pingSent       int64
-	pingMs         int64
-	exitFlag       uint32
-	activeSessions int64
-	totalSessions  uint64
+	control         net.Conn
+	enc             *jsonWriter
+	dec             *jsonReader
+	closeOnce       sync.Once
+	done            chan struct{}
+	trafficQuit     chan struct{}
+	statusCh        chan trafficStats
+	bytesUp         uint64
+	bytesDown       uint64
+	pingCh          chan time.Duration
+	uiWG            sync.WaitGroup
+	pingSent        int64
+	pingMs          int64
+	exitFlag        uint32
+	activeSessions  int64
+	totalSessions   uint64
+	requestLogLimit int
+	requestLogMu    sync.RWMutex
+	recentRequests  []httpRequestLogEntry
+	httpRequestSeq  uint64
 
 	udpMu       sync.Mutex
 	udpSessions map[string]*udpClientSession
@@ -189,9 +196,9 @@ func main() {
   → Kết quả: https://abc123.bacsycay.click
 
 ▶ TCP Tunnel - Nhận IP:Port:
-  proxvn 80                           # Public web server
-  proxvn 3389                         # Remote Desktop (RDP)
-  proxvn 22                           # SSH server
+  proxvn --proto tcp 80               # Public web server
+  proxvn --proto tcp 3389             # Remote Desktop (RDP)
+  proxvn --proto tcp 22               # SSH server
   → Kết quả: 103.77.246.196:10000
 
 ▶ UDP Tunnel - Game Server:
@@ -231,8 +238,10 @@ Licensed under FREE TO USE - NON-COMMERCIAL ONLY
 	id := flag.String("id", "", "Client ID (optional)")
 	proto := flag.String("proto", cfgFile.Proto, "Protocol: tcp, udp, or http")
 	subdomainFlag := flag.String("subdomain", cfgFile.Subdomain, "Subdomain HTTP muốn sử dụng (không kèm domain gốc)")
+	flag.StringVar(subdomainFlag, "s", cfgFile.Subdomain, "Viết tắt của --subdomain")
 	forceFlag := flag.Bool("force", cfgFile.Force, "Ép lấy lại --subdomain nếu server hỗ trợ")
 	UI := flag.Bool("ui", cfgFile.UI, "Enable TUI (disable with --ui=false)")
+	requestLogLimit := flag.Int("request-log", 10, "Số HTTP request gần nhất hiển thị trong TUI (0 để tắt)")
 	certPin := flag.String("cert-pin", cfgFile.CertPin, "Optional: Server certificate SHA256 fingerprint for pinning (hex format)")
 	insecure := flag.Bool("insecure", cfgFile.Insecure, "Skip TLS certificate verification (for testing with localhost)")
 
@@ -328,6 +337,9 @@ Licensed under FREE TO USE - NON-COMMERCIAL ONLY
 	if *forceFlag && requestedSubdomain == "" {
 		log.Fatal("[client] --force yêu cầu --subdomain")
 	}
+	if *requestLogLimit < 0 {
+		log.Fatal("[client] --request-log phải lớn hơn hoặc bằng 0")
+	}
 
 	cl := &client{
 		serverAddr:         *serverAddr,
@@ -338,6 +350,7 @@ Licensed under FREE TO USE - NON-COMMERCIAL ONLY
 		forceSubdomain:     *forceFlag,
 		certFingerprint:    strings.ToLower(strings.TrimSpace(*certPin)),
 		uiEnabled:          *UI && term.IsTerminal(int(os.Stdout.Fd())),
+		requestLogLimit:    *requestLogLimit,
 		state:              tunnel.NewStateMachine(),
 		ctrlQueue:          tunnel.NewControlMessageQueue(),
 	}
@@ -350,10 +363,29 @@ Licensed under FREE TO USE - NON-COMMERCIAL ONLY
 func (c *client) run() error {
 	backoff := 2 * time.Second
 	maxBackoff := 30 * time.Second
+	signalCh := make(chan os.Signal, 1)
+	runDone := make(chan struct{})
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(signalCh)
+	defer close(runDone)
+	go func() {
+		select {
+		case <-signalCh:
+			atomic.StoreUint32(&c.exitFlag, 1)
+			c.closeControl()
+		case <-runDone:
+		}
+	}()
 
 	for {
+		if atomic.LoadUint32(&c.exitFlag) == 1 {
+			return nil
+		}
 		_ = c.state.TransitionTo(tunnel.StateConnecting)
 		if err := c.connectControl(); err != nil {
+			if atomic.LoadUint32(&c.exitFlag) == 1 {
+				return nil
+			}
 			log.Printf("[client] kết nối control thất bại: %v", err)
 
 			// Calculate backoff with jitter
@@ -373,11 +405,17 @@ func (c *client) run() error {
 
 		// Reset backoff on success
 		backoff = 2 * time.Second
+		if atomic.LoadUint32(&c.exitFlag) == 1 {
+			c.closeControl()
+			c.uiWG.Wait()
+			return nil
+		}
 
 		if err := c.receiveLoop(); err != nil {
 			log.Printf("[client] control lỗi: %v", err)
 		}
 		c.closeControl()
+		c.uiWG.Wait()
 		if atomic.LoadUint32(&c.exitFlag) == 1 {
 			return nil
 		}
@@ -533,9 +571,22 @@ func (c *client) connectControl() error {
 			log.Printf("[client] UDP control đang chờ handshake với %s", c.serverAddr)
 		}
 	}
-	go c.heartbeatLoop()
-	go c.trafficLoop()
-	go c.displayLoop()
+	// Keep every background loop bound to this connection's channels. Reading
+	// them back through c after a reconnect can attach an old goroutine to the
+	// new session and cause multiple TUI renderers to write at the same time.
+	done := c.done
+	trafficQuit := c.trafficQuit
+	statusCh := c.statusCh
+	pingCh := c.pingCh
+	go c.heartbeatLoop(done)
+	go c.trafficLoop(statusCh, trafficQuit, done)
+	if c.uiEnabled {
+		c.uiWG.Add(1)
+		go func() {
+			defer c.uiWG.Done()
+			c.displayLoop(statusCh, pingCh, done, trafficQuit)
+		}()
+	}
 	success = true
 	return nil
 }
@@ -572,7 +623,7 @@ func (c *client) receiveLoop() error {
 	}
 }
 
-func (c *client) heartbeatLoop() {
+func (c *client) heartbeatLoop(done <-chan struct{}) {
 	ticker := time.NewTicker(heartbeatInterval)
 	defer ticker.Stop()
 
@@ -609,13 +660,13 @@ func (c *client) heartbeatLoop() {
 					c.closeControl()
 				}
 			}(start.UnixNano(), pongTimeout)
-		case <-c.done:
+		case <-done:
 			return
 		}
 	}
 }
 
-func (c *client) trafficLoop() {
+func (c *client) trafficLoop(statusCh chan trafficStats, trafficQuit, done <-chan struct{}) {
 	const interval = 1 * time.Second
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -628,7 +679,7 @@ func (c *client) trafficLoop() {
 		totalDown: formatBytes(0),
 	}
 	select {
-	case c.statusCh <- firstStats:
+	case statusCh <- firstStats:
 	default:
 	}
 	for {
@@ -647,31 +698,32 @@ func (c *client) trafficLoop() {
 				totalDown: formatBytes(down),
 			}
 			select {
-			case c.statusCh <- stats:
+			case statusCh <- stats:
 			default:
 				select {
-				case <-c.statusCh:
+				case <-statusCh:
 				default:
 				}
-				c.statusCh <- stats
+				statusCh <- stats
 			}
-		case <-c.trafficQuit:
+		case <-trafficQuit:
 			return
-		case <-c.done:
+		case <-done:
 			return
 		}
 	}
 }
 
-func (c *client) displayLoop() {
+func (c *client) displayLoop(statusCh <-chan trafficStats, pingCh <-chan time.Duration, done, trafficQuit <-chan struct{}) {
 	if !c.uiEnabled {
 		return
 	}
 
-	if c.uiEnabled {
-		fmt.Print("\033[2J\033[H\033[?25l")
-		defer fmt.Print("\033[?25h\033[2J\033[H")
-	}
+	// The alternate screen keeps shell history and ordinary log lines out of
+	// the dashboard. It is supported by the VS Code integrated terminal and
+	// regular Linux terminal emulators.
+	fmt.Print("\033[?1049h\033[2J\033[H\033[?25l")
+	defer fmt.Print("\033[?25h\033[?1049l")
 
 	traffic := trafficStats{
 		upRate:    formatRate(0, time.Second),
@@ -688,32 +740,30 @@ func (c *client) displayLoop() {
 		}
 		c.renderFrame(traffic, ping)
 	}
+	redrawTicker := time.NewTicker(1 * time.Second)
+	defer redrawTicker.Stop()
 
 	for {
-		// Force redraw every second even if no stats update
-		redrawTicker := time.NewTicker(1 * time.Second)
-		defer redrawTicker.Stop()
-
 		select {
 		case <-redrawTicker.C:
 			render()
-		case stats, ok := <-c.statusCh:
+		case stats, ok := <-statusCh:
 			if !ok {
 				return
 			}
 			traffic = stats
 			hasTraffic = true
 			render()
-		case duration, ok := <-c.pingCh:
+		case duration, ok := <-pingCh:
 			if !ok {
 				ping = time.Duration(-1)
 				continue
 			}
 			ping = duration
 			render()
-		case <-c.done:
+		case <-done:
 			return
-		case <-c.trafficQuit:
+		case <-trafficQuit:
 			return
 		}
 	}
@@ -1408,36 +1458,35 @@ func (c *client) reportProxyError(id string, err error) {
 
 func (c *client) closeControl() {
 	c.closeOnce.Do(func() {
-		close(c.done)
-	})
-	c.closeAllUDPSessions()
-	c.stopUDPPing()
-	c.setUDPCtrlStatus("offline")
-	c.udpMu.Lock()
-	if c.udpConn != nil {
-		c.udpConn.Close()
-		c.udpConn = nil
-	}
-	c.udpReady = false
-	c.udpMu.Unlock()
-	if c.control != nil {
-		c.control.Close()
-	}
-	c.control = nil
-	c.enc = nil
-	c.dec = nil
-	if c.trafficQuit != nil {
-		close(c.trafficQuit)
-		c.trafficQuit = nil
-	}
-	if c.statusCh != nil {
-		close(c.statusCh)
+		if c.done != nil {
+			close(c.done)
+		}
+		c.closeAllUDPSessions()
+		c.stopUDPPing()
+		c.setUDPCtrlStatus("offline")
+		c.udpMu.Lock()
+		if c.udpConn != nil {
+			c.udpConn.Close()
+			c.udpConn = nil
+		}
+		c.udpReady = false
+		c.udpMu.Unlock()
+		if c.control != nil {
+			c.control.Close()
+		}
+		c.control = nil
+		c.enc = nil
+		c.dec = nil
+		if c.trafficQuit != nil {
+			close(c.trafficQuit)
+			c.trafficQuit = nil
+		}
+		// statusCh and pingCh are intentionally not closed: producers may still be
+		// finishing while shutdown signals are being delivered. Session-local loop
+		// snapshots let the channels be collected safely after those loops exit.
 		c.statusCh = nil
-	}
-	if c.pingCh != nil {
-		close(c.pingCh)
 		c.pingCh = nil
-	}
+	})
 }
 
 func normalizedArgs(input []string) []string {
@@ -1585,6 +1634,14 @@ func formatPingDisplay(d time.Duration) (string, string) {
 
 func (c *client) renderFrame(stats trafficStats, ping time.Duration) {
 	activeSessions, totalSessions := c.getSessionStats()
+	terminalWidth, terminalHeight := terminalSize()
+	frameWidth := terminalWidth - 1
+	if frameWidth < 54 {
+		frameWidth = 54
+	}
+	if frameWidth > 100 {
+		frameWidth = 100
+	}
 
 	// ANSI colors
 	const (
@@ -1637,10 +1694,14 @@ func (c *client) renderFrame(stats trafficStats, ping time.Duration) {
 		return fmt.Sprintf(bold+brightCyan+"║"+reset+"  %s %s : %s%s%s", emoji, labelStr, color, val, reset)
 	}
 
+	topBorder := bold + brightCyan + "╔" + strings.Repeat("═", frameWidth-1)
+	separator := bold + brightCyan + "╠" + strings.Repeat("═", frameWidth-1)
+	bottomBorder := bold + brightCyan + "╚" + strings.Repeat("═", frameWidth-1)
+
 	lines := []string{
-		bold + brightCyan + "╔══════════════════════════════════════════════════════",
-		bold + brightCyan + "║" + reset + bold + "      TrongDev | ProxVN - Tunnel Việt Nam Free",
-		bold + brightCyan + "╠══════════════════════════════════════════════════════",
+		topBorder,
+		bold + brightCyan + "║" + reset + bold + "      ProxVN | Tunnel Client",
+		separator,
 		statusLine(),
 		makeRow("🔗", "Local", c.localAddr, cyan),
 		func() string {
@@ -1655,29 +1716,69 @@ func (c *client) renderFrame(stats trafficStats, ping time.Duration) {
 			return makeRow("🌐", "Public", displayHost, brightGreen+bold)
 		}(),
 		makeRow("📡", "Protocol", strings.ToUpper(nonEmpty(c.protocol, "tcp")), magenta),
-		bold + brightCyan + "╠══════════════════════════════════════════════════════",
-		func() string {
-			v1 := fmt.Sprintf("⬆️  %s%s/s%s", green, stats.upRate, reset)
-			v2 := fmt.Sprintf("⬇️  %s%s/s%s", blue, stats.downRate, reset)
-			return fmt.Sprintf(bold+brightCyan+"║"+reset+"  📊 Traffic  : %s %s", v1, v2)
-		}(),
-		func() string {
-			return fmt.Sprintf(bold+brightCyan+"║"+reset+"  📈 Total    : %s%s%s ↑  %s%s%s ↓", cyan, stats.totalUp, reset, cyan, stats.totalDown, reset)
-		}(),
-		func() string {
-			ac := strconv.Itoa(activeSessions)
-			to := strconv.FormatUint(totalSessions, 10)
-			return fmt.Sprintf(bold+brightCyan+"║"+reset+"  🔌 Sessions : active %s%s%s | total %s%s%s", yellow, ac, reset, cyan, to, reset)
-		}(),
-		func() string {
-			return fmt.Sprintf(bold+brightCyan+"║"+reset+"  🏓 Ping     : %s%s %s%s", pingColor, pingText, bars, reset)
-		}(),
-		makeRow("🔐", "Key", nonEmpty(c.key, "(none)"), yellow),
-		makeRow("⚙️", "Version", tunnel.Version, magenta),
-		bold + brightCyan + "╚══════════════════════════════════════════════════════",
-		"",
-		cyan + "  Press 'q' or ESC to quit" + reset,
 	}
+
+	v1 := fmt.Sprintf("⬆️  %s%s/s%s", green, stats.upRate, reset)
+	v2 := fmt.Sprintf("⬇️  %s%s/s%s", blue, stats.downRate, reset)
+	lines = append(lines,
+		separator,
+		fmt.Sprintf(bold+brightCyan+"║"+reset+"  📊 Traffic  : %s %s", v1, v2),
+	)
+
+	showRequestLog := c.protocol == "http" && c.requestLogLimit > 0
+	if showRequestLog {
+		lines = append(lines,
+			fmt.Sprintf(bold+brightCyan+"║"+reset+"  📈 Total    : %s%s%s ↑  %s%s%s ↓   🏓 %s%s %s%s", cyan, stats.totalUp, reset, cyan, stats.totalDown, reset, pingColor, pingText, bars, reset),
+			fmt.Sprintf(bold+brightCyan+"║"+reset+bold+"  🧾 Recent HTTP Requests (latest %d)"+reset, c.requestLogLimit),
+		)
+
+		endpointWidth := frameWidth - 36
+		if endpointWidth < 12 {
+			endpointWidth = 12
+		}
+		lines = append(lines, fmt.Sprintf(bold+brightCyan+"║"+reset+"  %-5s %-7s %-*s %8s %9s", "#", "METHOD", endpointWidth, "ENDPOINT", "LATENCY", "SIZE"))
+
+		requests := c.recentHTTPRequestSnapshot()
+		maxVisible := terminalHeight - len(lines) - 2
+		if maxVisible < 0 {
+			maxVisible = 0
+		}
+		if len(requests) > maxVisible {
+			requests = requests[len(requests)-maxVisible:]
+		}
+		if len(requests) == 0 && maxVisible > 0 {
+			lines = append(lines, bold+brightCyan+"║"+reset+"  Waiting for HTTP requests...")
+		} else {
+			for _, request := range requests {
+				sizeText := "-"
+				if request.completed {
+					sizeText = formatBytes(request.size)
+				}
+				lines = append(lines, fmt.Sprintf(
+					bold+brightCyan+"║"+reset+"  %-5s %-7s %-*s %8s %9s",
+					fmt.Sprintf("#%d", request.sequence),
+					truncateRequestEndpoint(request.method, 7),
+					endpointWidth,
+					truncateRequestEndpoint(request.endpoint, endpointWidth),
+					formatRequestLatency(request),
+					sizeText,
+				))
+			}
+		}
+	} else {
+		lines = append(lines,
+			fmt.Sprintf(bold+brightCyan+"║"+reset+"  📈 Total    : %s%s%s ↑  %s%s%s ↓", cyan, stats.totalUp, reset, cyan, stats.totalDown, reset),
+			fmt.Sprintf(bold+brightCyan+"║"+reset+"  🔌 Sessions : active %s%s%s | total %s%s%s", yellow, strconv.Itoa(activeSessions), reset, cyan, strconv.FormatUint(totalSessions, 10), reset),
+			fmt.Sprintf(bold+brightCyan+"║"+reset+"  🏓 Ping     : %s%s %s%s", pingColor, pingText, bars, reset),
+			makeRow("🔐", "Key", nonEmpty(c.key, "(none)"), yellow),
+			makeRow("⚙️", "Version", tunnel.Version, magenta),
+		)
+	}
+
+	lines = append(lines,
+		bottomBorder,
+		cyan+"  Press Ctrl+C to quit"+reset,
+	)
 
 	if c.uiEnabled {
 		var builder strings.Builder
@@ -1685,17 +1786,21 @@ func (c *client) renderFrame(stats trafficStats, ping time.Duration) {
 		// Move cursor to top-left (Home)
 		builder.WriteString("\033[H")
 
-		// Write all lines
-		for _, line := range lines {
+		// Clear every terminal row before rewriting it. Without this, remnants of
+		// a longer previous row remain visible after reconnects or log output.
+		for i, line := range lines {
+			builder.WriteString("\033[2K\r")
 			builder.WriteString(line)
-			builder.WriteByte('\n')
+			if i < len(lines)-1 {
+				builder.WriteByte('\n')
+			}
 		}
 
 		// Clear from cursor to end of screen (cleans up any partial leftovers from prev frame)
 		builder.WriteString("\033[J")
 
 		// Print everything in one go to minimize tearing/scrolling artifacts
-		fmt.Print(builder.String())
+		fmt.Fprint(os.Stdout, builder.String())
 	}
 }
 

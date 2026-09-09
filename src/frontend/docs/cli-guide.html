@@ -153,7 +153,7 @@
         </ul>
 
         <div class="note">
-            <strong>Server mặc định:</strong> Client đã tự động trỏ tới server free <code class="inline-code">103.77.246.196:8882</code>. Bạn chỉ cần download và chạy ngay.
+            <strong>Server mặc định:</strong> Client đã tự động trỏ tới server free <code class="inline-code">factorio.thinhnq.me:8882</code>. Bạn chỉ cần download và chạy ngay.
         </div>
 
         <h2>Cấu hình</h2>
@@ -167,8 +167,8 @@
         <h3>Config file (proxvn.json)</h3>
         <div class="code-block">
             <code>{<br>
-  "server": "103.77.246.196:8882",<br>
-  "proto": "tcp",<br>
+  "server": "factorio.thinhnq.me:8882",<br>
+  "proto": "http",<br>
   "host": "localhost",<br>
   "port": 8080,<br>
   "ui": true,<br>
@@ -190,12 +190,12 @@
         </div>
 
         <h3>2. TCP Tunneling</h3>
-        <p>Chế độ mặc định. Dùng cho SSH, RDP, MySQL, Redis...</p>
+        <p>Dùng cho SSH, RDP, MySQL, Redis...</p>
         <div class="code-block">
             <code># Cú pháp: proxvn [LOCAL_PORT]<br>
-./proxvn 22      # SSH<br>
-./proxvn 3389    # Remote Desktop<br>
-./proxvn 5432    # PostgreSQL</code>
+./proxvn --proto tcp 22      # SSH<br>
+./proxvn --proto tcp 3389    # Remote Desktop<br>
+./proxvn --proto tcp 5432    # PostgreSQL</code>
         </div>
 
         <h3>3. UDP Tunneling</h3>
@@ -225,12 +225,12 @@
             <tbody>
                 <tr>
                     <td><code class="inline-code">--server</code></td>
-                    <td>103.77.246.196:8882</td>
+                    <td>factorio.thinhnq.me:8882</td>
                     <td>Địa chỉ Server Tunnel (IP:Port)</td>
                 </tr>
                 <tr>
                     <td><code class="inline-code">--proto</code></td>
-                    <td>tcp</td>
+                    <td>http</td>
                     <td>Giao thức: tcp, udp, http</td>
                 </tr>
                 <tr>
@@ -244,6 +244,11 @@
                     <td>Port local (có thể điền trực tiếp)</td>
                 </tr>
                 <tr>
+                    <td><code class="inline-code">-s</code>, <code class="inline-code">--subdomain</code></td>
+                    <td>(tự động)</td>
+                    <td>Yêu cầu subdomain cụ thể cho HTTP tunnel</td>
+                </tr>
+                <tr>
                     <td><code class="inline-code">--id</code></td>
                     <td>(random)</td>
                     <td>ID định danh client</td>
@@ -252,6 +257,11 @@
                     <td><code class="inline-code">--ui</code></td>
                     <td>true</td>
                     <td>Bật giao diện TUI (false = background mode)</td>
+                </tr>
+                <tr>
+                    <td><code class="inline-code">--request-log</code></td>
+                    <td>10</td>
+                    <td>Số HTTP request gần nhất hiển thị trong TUI (0 = tắt)</td>
                 </tr>
                 <tr>
                     <td><code class="inline-code">--cert-pin</code></td>

@@ -117,8 +117,8 @@ proxvn --proto udp 19132  # Minecraft PE
 ### Remote Access
 Truy cập máy tính từ xa:
 ```bash
-proxvn 3389  # Remote Desktop (RDP)
-proxvn 22    # SSH
+proxvn --proto tcp 3389  # Remote Desktop (RDP)
+proxvn --proto tcp 22    # SSH
 ```
 
 ### IoT & Smart Home

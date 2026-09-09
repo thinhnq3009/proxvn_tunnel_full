@@ -29,7 +29,7 @@ func defaultClientConfig() *ClientConfig {
 		Server: defaultServerAddr,
 		Host:   defaultLocalHost,
 		Port:   defaultLocalPort,
-		Proto:  "tcp",
+		Proto:  "http",
 		UI:     true,
 	}
 }
@@ -107,7 +107,7 @@ func loadClientConfig(explicit string) *ClientConfig {
 		cfg.Port = defaultLocalPort
 	}
 	if cfg.Proto == "" {
-		cfg.Proto = "tcp"
+		cfg.Proto = "http"
 	}
 	return cfg
 }

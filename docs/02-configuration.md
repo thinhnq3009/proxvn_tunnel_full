@@ -38,10 +38,10 @@ Client tự tìm file theo thứ tự: `--config <path>` → biến môi trườ
 
 ```json
 {
-  "server": "103.77.246.196:8882",
+  "server": "factorio.thinhnq.me:8882",
   "host": "localhost",
   "port": 80,
-  "proto": "tcp",
+  "proto": "http",
   "ui": true,
   "cert_pin": "29e1546abeb0e1d27adc57362422670b5347a0f19a847c5e9dda8fa7cd99c6d8",
   "insecure": false

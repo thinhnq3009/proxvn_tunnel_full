@@ -57,7 +57,7 @@ if "%port%"=="" (
 echo.
 echo [*] Starting TCP tunnel on port %port%...
 echo.
-client\proxvn-windows-amd64.exe %port%
+client\proxvn-windows-amd64.exe --proto tcp %port%
 pause
 exit /b 0
 

@@ -62,7 +62,7 @@ Public SSH port 22 hoặc Remote Desktop 3389.
 
 ```bash
 # Client
-./bin/client/proxvn-linux-amd64 22
+./bin/client/proxvn-linux-amd64 --proto tcp 22
 # Output: 103.77.246.196:10000
 ```
 

@@ -10,7 +10,7 @@ Hỗ trợ HTTP/HTTPS, TCP, UDP và chia sẻ file (WebDAV), chạy đa nền t�
 duy nhất không cần cài đặt.
 
 
-- Tunnel server công cộng miễn phí: `103.77.246.196:8882`
+- Tunnel server công cộng miễn phí: `factorio.thinhnq.me:8882`
 - Domain: `bacsycay.click`
 - Dashboard: https://bacsycay.click/dashboard/
 
@@ -62,7 +62,7 @@ Không cần tự dựng server — đã có sẵn một server ProxVN miễn ph
 
 | Thành phần | Giá trị |
 | :--- | :--- |
-| Tunnel server | `103.77.246.196:8882` (mặc định của client) |
+| Tunnel server | `factorio.thinhnq.me:8882` (mặc định của client) |
 | Domain | `bacsycay.click` |
 | Dashboard | https://bacsycay.click/dashboard/ |
 | Cert-pin | `29e1546abeb0e1d27adc57362422670b5347a0f19a847c5e9dda8fa7cd99c6d8` |
@@ -143,14 +143,15 @@ proxvn [OPTIONS] [LOCAL_PORT]
 
 | Flag | Mặc định | Mô tả |
 | :--- | :--- | :--- |
-| `--proto` | `tcp` | Giao thức tunnel: `tcp`, `udp`, `http`. |
-| `--server` | `103.77.246.196:8882` | Địa chỉ server tunnel (IP:Port). |
+| `--proto` | `http` | Giao thức tunnel: `tcp`, `udp`, `http`. |
+| `--server` | `factorio.thinhnq.me:8882` | Địa chỉ server tunnel (host:port). |
 | `--host` | `localhost` | Địa chỉ service local (vd `192.168.1.10`). |
 | `--port` | `80` | Port service local (điền trực tiếp cuối lệnh được). |
-| `--subdomain` | (tự động) | Yêu cầu subdomain cụ thể khi dùng HTTP tunnel. |
+| `-s`, `--subdomain` | (tự động) | Yêu cầu subdomain cụ thể khi dùng HTTP tunnel. |
 | `--force` | `false` | Ép lấy lại `--subdomain` trên server có hỗ trợ. |
 | `--id` | (ngẫu nhiên) | Client ID tùy chọn, dùng để nhận diện trong Dashboard. |
 | `--ui` | `true` | Bật/tắt giao diện terminal (`true`/`false`). |
+| `--request-log` | `10` | Số HTTP request gần nhất hiển thị trong TUI (`0` để tắt). |
 | `--cert-pin` | (none) | SHA256 fingerprint của cert server để xác thực. |
 | `--insecure` | `false` | Bỏ qua xác thực TLS server (chỉ dùng cho dev/test). |
 | `--config` | (auto) | Đường dẫn file cấu hình client. |
@@ -191,10 +192,10 @@ Forwarding: localhost:3000
 Dùng cho SSH, RDP, MySQL, PostgreSQL...
 
 ```bash
-proxvn 22            # SSH (mặc định proto tcp)
-proxvn 3389          # Remote Desktop (Windows)
-proxvn 3306          # MySQL
-proxvn --server YOUR_VPS_IP:8882 22   # dùng server riêng
+proxvn --proto tcp 22            # SSH
+proxvn --proto tcp 3389          # Remote Desktop (Windows)
+proxvn --proto tcp 3306          # MySQL
+proxvn --server YOUR_VPS_IP:8882 --proto tcp 22   # dùng server riêng
 ```
 
 Kết quả:
@@ -519,7 +520,7 @@ sudo ss -tlnp | grep -E '8881|8882'
 Lỗi cert-pin không khớp — lấy lại fingerprint đúng:
 
 ```bash
-echo | openssl s_client -connect 103.77.246.196:8882 2>/dev/null \
+echo | openssl s_client -connect factorio.thinhnq.me:8882 2>/dev/null \
   | openssl x509 -outform DER | sha256sum
 ```
 
@@ -541,7 +542,7 @@ Client:
 
 ```bash
 proxvn --proto http 3000                         # HTTP tunnel
-proxvn 22                                         # TCP tunnel (SSH)
+proxvn --proto tcp 22                             # TCP tunnel (SSH)
 proxvn --proto udp 19132                          # UDP tunnel
 proxvn --file ~/Documents --pass secret           # Chia sẻ file
 proxvn --server YOUR_IP:8882 --proto http 3000    # Dùng server riêng

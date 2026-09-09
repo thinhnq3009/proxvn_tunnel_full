@@ -10,7 +10,7 @@ Tải binary phù hợp với hệ điều hành của bạn (thư mục `bin/cl
 - **macOS**: `proxvn-darwin-amd64` (Intel) / `proxvn-darwin-arm64` (Apple Silicon)
 - **Android (Termux)**: `proxvn-android-arm64`
 
-> Mặc định client trỏ tới server free `103.77.246.196:8882`. Đổi bằng file
+> Mặc định client trỏ tới server free `factorio.thinhnq.me:8882`. Đổi bằng file
 > `proxvn.json` hoặc flag `--server` (xem [02 - Configuration](02-configuration.md)).
 
 > **Flag đặt ở đâu cũng được**: `proxvn --proto http 3000 --ui=false`,
@@ -28,13 +28,13 @@ Server sẽ cấp tự động một Subdomain HTTPS (SSL).
 ```
 
 ### 2. TCP Tunneling (`--proto tcp`)
-Chế độ mặc định. Dùng cho mọi giao thức TCP (SSH, RDP, MySQL, Redis...).
+Dùng cho mọi giao thức TCP (SSH, RDP, MySQL, Redis...).
 
 ```bash
 # Cú pháp: proxvn [LOCAL_PORT]
-./proxvn 22     # SSH
-./proxvn 3389   # Remote Desktop
-./proxvn 5432   # PostgreSQL
+./proxvn --proto tcp 22     # SSH
+./proxvn --proto tcp 3389   # Remote Desktop
+./proxvn --proto tcp 5432   # PostgreSQL
 ```
 
 ### 3. UDP Tunneling (`--proto udp`)
@@ -64,14 +64,15 @@ Hỗ trợ Web Interface (xem, sửa code, upload) và WebDAV (mount drive).
 
 | Flag | Mặc định | Mô tả |
 | :--- | :--- | :--- |
-| `--server` | (default) | Địa chỉ Server Tunnel (IP:Port). Mặc định server cộng đồng. |
-| `--proto` | `tcp` | Giao thức: `tcp`, `udp`, `http`. |
+| `--server` | `factorio.thinhnq.me:8882` | Địa chỉ Server Tunnel (host:port). |
+| `--proto` | `http` | Giao thức: `tcp`, `udp`, `http`. |
 | `--host` | `localhost` | Host local cần forward (VD: 192.168.1.10). |
 | `--port` | `80` | Port local (có thể điền trực tiếp không cần flag này). |
-| `--subdomain` | (tự động) | Yêu cầu subdomain cụ thể cho HTTP tunnel. |
+| `-s`, `--subdomain` | (tự động) | Yêu cầu subdomain cụ thể cho HTTP tunnel. |
 | `--force` | `false` | Ép lấy lại `--subdomain` nếu server hỗ trợ. |
 | `--id` | (random) | ID định danh client (tùy chọn). |
 | `--ui` | `true` | Bật giao diện TUI (`false` để chạy background/service). |
+| `--request-log` | `10` | Số HTTP request gần nhất hiển thị trong TUI (`0` để tắt). |
 | `--cert-pin` | (none) | SHA256 fingerprint cert server để xác thực (chống MITM). |
 | `--insecure` | `false` | Bỏ qua xác thực SSL (chỉ dùng test). |
 | `--config` | (auto) | Đường dẫn file cấu hình client (`proxvn.json`). |

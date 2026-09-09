@@ -52,7 +52,7 @@
         <p>Hướng dẫn cài đặt và chạy tunnel đầu tiên của bạn trong 2 phút.</p>
 
         <div class="note">
-            <strong>Zero Configuration:</strong> Server free public đã sẵn sàng tại <code class="inline-code">103.77.246.196:8882</code>. Bạn chỉ cần download client và chạy ngay — không cần đăng ký, không cần credit card.
+            <strong>Zero Configuration:</strong> Server free public đã sẵn sàng tại <code class="inline-code">factorio.thinhnq.me:8882</code>. Bạn chỉ cần download client và chạy ngay — không cần đăng ký, không cần credit card.
         </div>
 
         <h2>Bước 1: Download Client</h2>
@@ -91,7 +91,7 @@ Forwarding to: localhost:3000</code>
             <h3><span class="step-number">2</span>TCP Tunnel (SSH)</h3>
             <p>Expose SSH server của bạn ra internet:</p>
             <div class="code-block">
-                <code>./proxvn-linux-amd64 22</code>
+                <code>./proxvn-linux-amd64 --proto tcp 22</code>
             </div>
             <p>Kết quả:</p>
             <div class="code-block">
@@ -131,25 +131,25 @@ Forwarding to: localhost:22</code>
         <h3>Remote Access</h3>
         <div class="code-block">
             <code># SSH (port 22)<br>
-./proxvn 22<br>
+./proxvn --proto tcp 22<br>
 <br>
 # RDP Windows (port 3389)<br>
-proxvn.exe 3389<br>
+proxvn.exe --proto tcp 3389<br>
 <br>
 # VNC (port 5900)<br>
-./proxvn 5900</code>
+./proxvn --proto tcp 5900</code>
         </div>
 
         <h3>Database Access</h3>
         <div class="code-block">
             <code># PostgreSQL (port 5432)<br>
-./proxvn 5432<br>
+./proxvn --proto tcp 5432<br>
 <br>
 # MySQL (port 3306)<br>
-./proxvn 3306<br>
+./proxvn --proto tcp 3306<br>
 <br>
 # MongoDB (port 27017)<br>
-./proxvn 27017</code>
+./proxvn --proto tcp 27017</code>
         </div>
 
         <h2>Tùy Chỉnh Nâng Cao</h2>
@@ -158,7 +158,7 @@ proxvn.exe 3389<br>
         <p>Tạo file <code class="inline-code">proxvn.json</code> cùng thư mục với binary:</p>
         <div class="code-block">
             <code>{<br>
-  "server": "103.77.246.196:8882",<br>
+  "server": "factorio.thinhnq.me:8882",<br>
   "proto": "http",<br>
   "port": 3000,<br>
   "ui": true<br>

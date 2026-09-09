@@ -81,7 +81,7 @@ Chi tiết: [Server Setup Guide](Server-Setup)
 
 ### Làm sao để public SSH server?
 ```bash
-proxvn 22
+proxvn --proto tcp 22
 ```
 Bạn sẽ nhận: `103.77.246.196:10000`
 
@@ -159,7 +159,7 @@ proxvn --proto http 8080
 
 Terminal 3:
 ```bash
-proxvn 22
+proxvn --proto tcp 22
 ```
 
 ---

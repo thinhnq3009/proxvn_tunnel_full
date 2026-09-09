@@ -48,7 +48,7 @@ case $choice in
         fi
         echo ""
         echo -e "${BLUE}🚀 Starting TCP tunnel on port $port...${NC}"
-        ./client/proxvn-linux-amd64 $port
+        ./client/proxvn-linux-amd64 --proto tcp $port
         ;;
     3)
         read -p "Enter local port (e.g., 19132 for Minecraft): " port

@@ -20,6 +20,12 @@ func (c *client) handleHTTPRequest(msg tunnel.Message) {
 		log.Printf("[client] Received HTTP request but not in HTTP mode")
 		return
 	}
+	startedAt := time.Now()
+	requestSeq := c.beginHTTPRequest(msg.Method, msg.Path)
+	var responseSize uint64
+	defer func() {
+		c.finishHTTPRequest(requestSeq, time.Since(startedAt), responseSize)
+	}()
 
 	// Determine scheme based on port
 	scheme := "http"
@@ -76,6 +82,7 @@ func (c *client) handleHTTPRequest(msg tunnel.Message) {
 		//c.sendHTTPError(msg.ID, http.StatusInternalServerError, "Failed to read response")
 		return
 	}
+	responseSize = uint64(len(body))
 
 	// Convert headers to map, preserving all values by joining with commas
 	// This is important for headers like 'Dav' which can have multiple values
