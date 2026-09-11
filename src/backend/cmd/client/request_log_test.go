@@ -22,6 +22,9 @@ func TestRequestLogKeepsNewestEntries(t *testing.T) {
 	if entries[0].sequence != second || entries[1].sequence != third {
 		t.Fatalf("got sequences %d, %d; want %d, %d", entries[0].sequence, entries[1].sequence, second, third)
 	}
+	if entries[0].received.IsZero() || entries[1].received.IsZero() {
+		t.Fatalf("request receive time was not stored: %+v", entries)
+	}
 	if !entries[1].completed || entries[1].latency != 30*time.Millisecond || entries[1].size != 30 {
 		t.Fatalf("latest entry was not completed correctly: %+v", entries[1])
 	}
@@ -64,5 +67,15 @@ func TestFormatRequestLatency(t *testing.T) {
 	}
 	if got := formatRequestLatency(httpRequestLogEntry{completed: true, latency: 12*time.Millisecond + 400*time.Microsecond}); got != "12ms" {
 		t.Fatalf("rounded latency = %q, want 12ms", got)
+	}
+}
+
+func TestFormatRequestReceivedAt(t *testing.T) {
+	if got := formatRequestReceivedAt(httpRequestLogEntry{}); got != "--:--:--" {
+		t.Fatalf("zero received time = %q, want --:--:--", got)
+	}
+	received := time.Date(2026, 9, 11, 7, 8, 9, 0, time.Local)
+	if got := formatRequestReceivedAt(httpRequestLogEntry{received: received}); got != "07:08:09" {
+		t.Fatalf("received time = %q, want 07:08:09", got)
 	}
 }

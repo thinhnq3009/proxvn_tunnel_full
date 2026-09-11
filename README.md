@@ -89,7 +89,17 @@ Sau đó có thể gọi `proxvn` ở bất kỳ thư mục nào, không cần `
 proxvn --proto http 3000
 ```
 
-Chạy lại cùng lệnh cài đặt để cập nhật khi installer trỏ sang bản phát hành mới.
+Cập nhật client đang cài:
+
+```bash
+proxvn update
+```
+
+Nếu mày đặt binary/alias là `provn`, dùng:
+
+```bash
+provn update
+```
 
 ### 1. Tải binary thủ công
 

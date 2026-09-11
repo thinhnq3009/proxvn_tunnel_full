@@ -11,6 +11,7 @@ const maxStoredEndpointRunes = 256
 
 type httpRequestLogEntry struct {
 	sequence  uint64
+	received  time.Time
 	method    string
 	endpoint  string
 	latency   time.Duration
@@ -28,6 +29,7 @@ func (c *client) beginHTTPRequest(method, endpoint string) uint64 {
 	sequence := atomic.AddUint64(&c.httpRequestSeq, 1)
 	entry := httpRequestLogEntry{
 		sequence: sequence,
+		received: time.Now(),
 		method:   strings.ToUpper(strings.TrimSpace(method)),
 		endpoint: sanitizeRequestEndpoint(endpoint),
 	}
@@ -115,4 +117,11 @@ func formatRequestLatency(entry httpRequestLogEntry) string {
 		return "<1ms"
 	}
 	return entry.latency.Round(time.Millisecond).String()
+}
+
+func formatRequestReceivedAt(entry httpRequestLogEntry) string {
+	if entry.received.IsZero() {
+		return "--:--:--"
+	}
+	return entry.received.Format("15:04:05")
 }

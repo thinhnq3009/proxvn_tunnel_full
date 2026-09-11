@@ -182,6 +182,7 @@ func main() {
 
 📖 CÚ PHÁP:
   proxvn [OPTIONS] [LOCAL_PORT]
+  proxvn update
 
 ⚙️  CÁC THAM SỐ:
 `, tunnel.Version)
@@ -216,6 +217,9 @@ func main() {
 ▶ Kết nối tới VPS riêng:
   proxvn --server YOUR_VPS_IP:8882 --proto http 80
 
+▶ Cập nhật client:
+  proxvn update                         # hoặc provn update nếu binary đang tên provn
+
 🔗 THÔNG TIN:
   • Website:        https://bacsycay.click
   • Documentation:  https://github.com/hoangtuvungcao/proxvn_tunnel
@@ -225,6 +229,15 @@ func main() {
 Licensed under FREE TO USE - NON-COMMERCIAL ONLY
 
 `)
+	}
+
+	if len(os.Args) > 1 && strings.EqualFold(strings.TrimSpace(os.Args[1]), "update") {
+		log.SetOutput(os.Stderr)
+		log.SetFlags(log.LstdFlags)
+		if err := runSelfUpdate(os.Args[2:]); err != nil {
+			log.Fatalf("[update] lỗi: %v", err)
+		}
+		return
 	}
 
 	// Load config file (if any) so its values become the flag defaults.
@@ -1732,11 +1745,11 @@ func (c *client) renderFrame(stats trafficStats, ping time.Duration) {
 			fmt.Sprintf(bold+brightCyan+"║"+reset+bold+"  🧾 Recent HTTP Requests (latest %d)"+reset, c.requestLogLimit),
 		)
 
-		endpointWidth := frameWidth - 36
+		endpointWidth := frameWidth - 46
 		if endpointWidth < 12 {
 			endpointWidth = 12
 		}
-		lines = append(lines, fmt.Sprintf(bold+brightCyan+"║"+reset+"  %-5s %-7s %-*s %8s %9s", "#", "METHOD", endpointWidth, "ENDPOINT", "LATENCY", "SIZE"))
+		lines = append(lines, fmt.Sprintf(bold+brightCyan+"║"+reset+"  %-5s %-8s %-7s %-*s %8s %9s", "#", "TIME", "METHOD", endpointWidth, "ENDPOINT", "LATENCY", "SIZE"))
 
 		requests := c.recentHTTPRequestSnapshot()
 		maxVisible := terminalHeight - len(lines) - 2
@@ -1755,8 +1768,9 @@ func (c *client) renderFrame(stats trafficStats, ping time.Duration) {
 					sizeText = formatBytes(request.size)
 				}
 				lines = append(lines, fmt.Sprintf(
-					bold+brightCyan+"║"+reset+"  %-5s %-7s %-*s %8s %9s",
+					bold+brightCyan+"║"+reset+"  %-5s %-8s %-7s %-*s %8s %9s",
 					fmt.Sprintf("#%d", request.sequence),
+					formatRequestReceivedAt(request),
 					truncateRequestEndpoint(request.method, 7),
 					endpointWidth,
 					truncateRequestEndpoint(request.endpoint, endpointWidth),
