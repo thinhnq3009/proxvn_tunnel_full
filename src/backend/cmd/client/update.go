@@ -14,12 +14,16 @@ import (
 	"time"
 )
 
-const defaultUpdateBaseURL = "https://bacsycay.click/bin/client"
+const (
+	defaultUpdateBaseURL     = "https://raw.githubusercontent.com/thinhnq3009/proxvn_tunnel_full/develop/bin/client"
+	defaultUpdateChecksumURL = "https://raw.githubusercontent.com/thinhnq3009/proxvn_tunnel_full/develop/bin/SHA256SUMS-client.txt"
+)
 
 func runSelfUpdate(args []string) error {
 	fs := flag.NewFlagSet("update", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	baseURL := fs.String("url", defaultUpdateBaseURL, "base URL chứa binary client")
+	checksumURL := fs.String("checksum-url", defaultUpdateChecksumURL, "URL chứa SHA256SUMS-client.txt")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -42,14 +46,13 @@ func runSelfUpdate(args []string) error {
 
 	base := strings.TrimRight(*baseURL, "/")
 	binaryURL := base + "/" + binaryName
-	checksumURL := base + "/../SHA256SUMS-client.txt"
 
 	fmt.Printf("[update] Đang tải %s\n", binaryURL)
 	data, err := downloadUpdateFile(binaryURL)
 	if err != nil {
 		return err
 	}
-	if err := verifyUpdateChecksum(data, binaryName, checksumURL); err != nil {
+	if err := verifyUpdateChecksum(data, binaryName, strings.TrimSpace(*checksumURL)); err != nil {
 		return err
 	}
 
