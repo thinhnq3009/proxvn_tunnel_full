@@ -4,7 +4,7 @@
 
 set -e
 
-echo "🚀 ProxVN Build Script v7.5"
+echo "🚀 ProxVN Build Script v7.5.1"
 echo "================================"
 echo ""
 
@@ -25,7 +25,7 @@ rm -rf $CLIENT_DIR $SERVER_DIR
 mkdir -p $CLIENT_DIR $SERVER_DIR
 
 # Build info
-VERSION="7.5"
+VERSION="7.5.1"
 BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 

@@ -73,6 +73,7 @@ Hỗ trợ Web Interface (xem, sửa code, upload) và WebDAV (mount drive).
 | `--id` | (random) | ID định danh client (tùy chọn). |
 | `--ui` | `true` | Bật giao diện TUI (`false` để chạy background/service). |
 | `--request-log` | `10` | Số HTTP request gần nhất hiển thị trong TUI (`0` để tắt). |
+| `--log-to-file`, `-ltf` | (tắt) | Ghi log client vào file, ví dụ `-ltf ./client.log`; ghi nền theo lô, hàng đợi đầy sẽ bỏ dòng. |
 | `--cert-pin` | (none) | SHA256 fingerprint cert server để xác thực (chống MITM). |
 | `--insecure` | `false` | Bỏ qua xác thực SSL (chỉ dùng test). |
 | `--config` | (auto) | Đường dẫn file cấu hình client (`proxvn.json`). |
@@ -84,10 +85,10 @@ Hỗ trợ Web Interface (xem, sửa code, upload) và WebDAV (mount drive).
 ## Mẹo & Thủ Thuật
 
 ### Chạy ngầm (Background)
-Trên Linux, dùng `nohup` hoặc `systemd`. Tắt UI để log ra file dễ hơn.
+Trên Linux, dùng `nohup` hoặc `systemd`. Dùng `-ltf` để lưu log client mà không chờ thao tác ghi đĩa; log vẫn hiện trên stderr.
 
 ```bash
-nohup ./proxvn --proto http 3000 --ui=false > client.log 2>&1 &
+nohup ./proxvn --proto http 3000 --ui=false -ltf ./client.log >/dev/null 2>&1 &
 ```
 
 ### Kết nối Server Riêng (Self-hosted)

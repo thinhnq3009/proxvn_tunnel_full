@@ -76,11 +76,11 @@ thì sửa file `proxvn.json` hoặc dùng flag `--server` (xem [Cấu hình](do
 
 ### Ubuntu: cài một lệnh
 
-Installer tự nhận diện `amd64`/`arm64`, kiểm tra SHA256 và cài bản `v7.5.0`
+Installer tự nhận diện `amd64`/`arm64`, kiểm tra SHA256 và cài bản `v7.5.1`
 thành `/usr/local/bin/proxvn`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/thinhnq3009/proxvn_tunnel_full/v7.5.0/scripts/install-ubuntu.sh | sudo sh
+curl -fsSL https://raw.githubusercontent.com/thinhnq3009/proxvn_tunnel_full/v7.5.1/scripts/install-ubuntu.sh | sudo sh
 ```
 
 Sau đó có thể gọi `proxvn` ở bất kỳ thư mục nào, không cần `./`:
@@ -179,6 +179,7 @@ proxvn [OPTIONS] [LOCAL_PORT]
 | `--id` | (ngẫu nhiên) | Client ID tùy chọn, dùng để nhận diện trong Dashboard. |
 | `--ui` | `true` | Bật/tắt giao diện terminal (`true`/`false`). |
 | `--request-log` | `10` | Số HTTP request gần nhất hiển thị trong TUI (`0` để tắt). |
+| `--log-to-file`, `-ltf` | (tắt) | Ghi log client vào file, ví dụ `--log-to-file ./client.log`; ghi nền theo lô, hàng đợi đầy sẽ bỏ dòng. |
 | `--cert-pin` | (none) | SHA256 fingerprint của cert server để xác thực. |
 | `--insecure` | `false` | Bỏ qua xác thực TLS server (chỉ dùng cho dev/test). |
 | `--config` | (auto) | Đường dẫn file cấu hình client. |

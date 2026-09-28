@@ -7,7 +7,7 @@ import (
 	"io"
 )
 
-const Version = "7.5"
+const Version = "7.5.1"
 
 // Message is the control-plane payload exchanged between tunnel peers.
 type Message struct {

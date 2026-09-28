@@ -264,6 +264,11 @@
                     <td>Số HTTP request gần nhất hiển thị trong TUI (0 = tắt)</td>
                 </tr>
                 <tr>
+                    <td><code class="inline-code">--log-to-file</code>, <code class="inline-code">-ltf</code></td>
+                    <td>(tắt)</td>
+                    <td>Ghi log client vào file theo lô; hàng đợi đầy sẽ bỏ dòng để tunnel không chờ đĩa</td>
+                </tr>
+                <tr>
                     <td><code class="inline-code">--cert-pin</code></td>
                     <td>(none)</td>
                     <td>SHA256 cert pin để xác thực server</td>
@@ -298,9 +303,9 @@
         <h2>Mẹo & Thủ Thuật</h2>
 
         <h3>Chạy ngầm (Background)</h3>
-        <p>Trên Linux, dùng <code class="inline-code">nohup</code> hoặc <code class="inline-code">systemd</code>. Tắt UI để log ra file dễ hơn.</p>
+        <p>Trên Linux, dùng <code class="inline-code">nohup</code> hoặc <code class="inline-code">systemd</code>. Dùng <code class="inline-code">-ltf</code> để ghi log client vào file.</p>
         <div class="code-block">
-            <code>nohup ./proxvn --proto http 3000 --ui=false > client.log 2>&1 &</code>
+            <code>nohup ./proxvn --proto http 3000 --ui=false -ltf ./client.log >/dev/null 2>&1 &</code>
         </div>
 
         <h3>Kết nối Server Riêng (Self-hosted)</h3>

@@ -458,7 +458,7 @@ func (s *server) startHTTPServer(cfg *config.Config, db *database.Database) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":  "ok",
 			"server":  "ProxVN by TrongDev",
-			"version": "7.5.0",
+			"version": tunnel.Version,
 		})
 	})
 

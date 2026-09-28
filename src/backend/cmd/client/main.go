@@ -255,6 +255,8 @@ Licensed under FREE TO USE - NON-COMMERCIAL ONLY
 	forceFlag := flag.Bool("force", cfgFile.Force, "Ép lấy lại --subdomain nếu server hỗ trợ")
 	UI := flag.Bool("ui", cfgFile.UI, "Enable TUI (disable with --ui=false)")
 	requestLogLimit := flag.Int("request-log", 10, "Số HTTP request gần nhất hiển thị trong TUI (0 để tắt)")
+	logFile := flag.String("log-to-file", "", "Ghi log client vào file (bất đồng bộ; bỏ dòng khi hàng đợi đầy)")
+	flag.StringVar(logFile, "ltf", "", "Viết tắt của --log-to-file")
 	certPin := flag.String("cert-pin", cfgFile.CertPin, "Optional: Server certificate SHA256 fingerprint for pinning (hex format)")
 	insecure := flag.Bool("insecure", cfgFile.Insecure, "Skip TLS certificate verification (for testing with localhost)")
 
@@ -282,11 +284,28 @@ Licensed under FREE TO USE - NON-COMMERCIAL ONLY
 
 	log.SetOutput(os.Stderr)
 	log.SetFlags(log.LstdFlags)
+	var fileLogger *asyncFileLogger
+	if *logFile != "" {
+		var err error
+		fileLogger, err = newAsyncFileLogger(*logFile)
+		if err != nil {
+			log.Fatalf("[client] không mở được log file %q: %v", *logFile, err)
+		}
+		log.SetOutput(io.MultiWriter(os.Stderr, fileLogger))
+		defer fileLogger.Close()
+	}
+	fatalf := func(format string, args ...any) {
+		log.Printf(format, args...)
+		if fileLogger != nil {
+			fileLogger.Close()
+		}
+		os.Exit(1)
+	}
 
 	// Check if file sharing mode
 	if *fileFlag != "" {
 		if *passFlag == "" {
-			log.Fatal("❌ Lỗi: --pass bắt buộc khi dùng --file")
+			fatalf("❌ Lỗi: --pass bắt buộc khi dùng --file")
 		}
 		// Trim spaces to prevent auth errors
 		username := strings.TrimSpace(*userFlag)
@@ -294,7 +313,7 @@ Licensed under FREE TO USE - NON-COMMERCIAL ONLY
 		perms := strings.TrimSpace(*permsFlag)
 
 		if err := runFileShareMode(*fileFlag, username, password, perms, *serverAddr, *insecure); err != nil {
-			log.Fatalf("❌ File sharing lỗi: %v", err)
+			fatalf("❌ File sharing lỗi: %v", err)
 		}
 		return
 	}
@@ -319,7 +338,7 @@ Licensed under FREE TO USE - NON-COMMERCIAL ONLY
 		if p, err := strconv.Atoi(args[0]); err == nil && p > 0 && p <= 65535 {
 			localPort = p
 		} else {
-			log.Fatalf("[client] port không hợp lệ: %q", args[0])
+			fatalf("[client] port không hợp lệ: %q", args[0])
 		}
 	default:
 		if strings.TrimSpace(args[0]) != "" {
@@ -328,12 +347,12 @@ Licensed under FREE TO USE - NON-COMMERCIAL ONLY
 		if p, err := strconv.Atoi(args[1]); err == nil && p > 0 && p <= 65535 {
 			localPort = p
 		} else {
-			log.Fatalf("[client] port không hợp lệ: %q", args[1])
+			fatalf("[client] port không hợp lệ: %q", args[1])
 		}
 	}
 
 	if localPort <= 0 || localPort > 65535 {
-		log.Fatalf("[client] port không hợp lệ: %d", localPort)
+		fatalf("[client] port không hợp lệ: %d", localPort)
 	}
 
 	protocol := strings.ToLower(strings.TrimSpace(*proto))
@@ -342,16 +361,16 @@ Licensed under FREE TO USE - NON-COMMERCIAL ONLY
 	}
 	requestedSubdomain, err := normalizeRequestedSubdomain(*subdomainFlag)
 	if err != nil {
-		log.Fatalf("[client] subdomain không hợp lệ: %v", err)
+		fatalf("[client] subdomain không hợp lệ: %v", err)
 	}
 	if requestedSubdomain != "" && protocol != "http" {
-		log.Fatal("[client] --subdomain chỉ dùng được với --proto http")
+		fatalf("[client] --subdomain chỉ dùng được với --proto http")
 	}
 	if *forceFlag && requestedSubdomain == "" {
-		log.Fatal("[client] --force yêu cầu --subdomain")
+		fatalf("[client] --force yêu cầu --subdomain")
 	}
 	if *requestLogLimit < 0 {
-		log.Fatal("[client] --request-log phải lớn hơn hoặc bằng 0")
+		fatalf("[client] --request-log phải lớn hơn hoặc bằng 0")
 	}
 
 	cl := &client{
@@ -369,7 +388,7 @@ Licensed under FREE TO USE - NON-COMMERCIAL ONLY
 	}
 
 	if err := cl.run(); err != nil {
-		log.Fatalf("[client] lỗi: %v", err)
+		fatalf("[client] lỗi: %v", err)
 	}
 }
 
